@@ -1,0 +1,218 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bench Time Report</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #0066cc;
+      --background: #f0f2f5;
+      --text: #333;
+      --card: #fff;
+      --border: #ddd;
+      --highlight: #f9f9f9;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h2, h3 {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background-color: var(--highlight);
+    }
+
+    tr:nth-child(even) {
+      background-color: #f5f8fa;
+    }
+
+    .actions {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0055aa;
+    }
+
+    @media (max-width: 600px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+      }
+
+      thead tr {
+        display: none;
+      }
+
+      tr {
+        margin-bottom: 10px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 10px;
+        background: var(--card);
+      }
+
+      td {
+        padding: 10px;
+        text-align: right;
+        position: relative;
+      }
+
+      td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        font-weight: bold;
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Bench Time for U17 Red</h2>
+    <h3 id="reportDate"></h3>
+
+    <table id="reportTable">
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Bench Time</th>
+          <th>% of Game on Field</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="actions">
+      <button onclick="saveReport()">Download PDF</button>
+      <button onclick="window.location.href='index.html'">Back to Game</button>
+    </div>
+  </div>
+
+  <script>
+    const data = localStorage.getItem("bench_report") || "";
+    const reportText = data.trim().split("\n");
+    const tbody = document.querySelector("#reportTable tbody");
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString();
+    document.getElementById("reportDate").textContent = `Date: ${dateStr}`;
+
+    const entries = [];
+    let maxBenchTime = 0;
+
+    reportText.forEach(line => {
+      const [name, time] = line.split(": ");
+      if (name && time) {
+        const [min, sec] = time.split(":").map(Number);
+        const benchSeconds = min * 60 + sec;
+        entries.push({ name, time, benchSeconds });
+        if (benchSeconds > maxBenchTime) maxBenchTime = benchSeconds;
+      }
+    });
+
+    const totalGameTime = maxBenchTime;
+
+    entries.forEach(e => {
+      const fieldSeconds = totalGameTime - e.benchSeconds;
+      e.percentOnField = ((fieldSeconds / totalGameTime) * 100).toFixed(1);
+    });
+
+    entries.sort((a, b) => b.percentOnField - a.percentOnField);
+
+    entries.forEach(({ name, time, percentOnField }) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td data-label='Player'>${name}</td>
+        <td data-label='Bench Time'>${time}</td>
+        <td data-label='% of Game on Field'>${percentOnField}%</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    function saveReport() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const startX = 20;
+      let startY = 30;
+      const rowHeight = 10;
+
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text("Bench Time for U17 Red", 105, startY, { align: "center" });
+
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(12);
+      doc.text(`Date: ${dateStr}`, 105, startY + 10, { align: "center" });
+
+      startY += 25;
+
+      doc.setFont("Helvetica", "bold");
+      doc.setFillColor(230, 230, 230);
+      doc.rect(startX, startY, 170, rowHeight, "F");
+      doc.text("Player", startX + 2, startY + 7);
+      doc.text("Bench Time", startX + 80, startY + 7);
+      doc.text("% on Field", startX + 140, startY + 7);
+
+      doc.setFont("Helvetica", "normal");
+
+      entries.forEach((entry, i) => {
+        const y = startY + (i + 1) * rowHeight;
+        if (i % 2 === 1) {
+          doc.setFillColor(245, 245, 245);
+          doc.rect(startX, y, 170, rowHeight, "F");
+        }
+        doc.text(entry.name, startX + 2, y + 7);
+        doc.text(entry.time, startX + 80, y + 7);
+        doc.text(entry.percentOnField + "%", startX + 140, y + 7);
+      });
+
+      doc.save("bench_time_report.pdf");
+    }
+  </script>
+</body>
+</html>

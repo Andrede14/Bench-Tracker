@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Soccer Sub Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --primary: #0066cc;
+      --background: #f0f2f5;
+      --text: #333;
+      --card: #fff;
+      --border: #ddd;
+      --highlight: #f9f9f9;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    #game-clock {
+      font-size: 18px;
+      margin-left: 10px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .controls button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .controls button.active {
+      background-color: #004c99;
+      font-weight: bold;
+      border: 2px solid #003366;
+    }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      margin-bottom: 8px;
+      padding: 10px;
+      gap: 10px;
+    }
+
+    .player-row input {
+      flex: 1;
+      padding: 8px;
+    }
+
+    .bench-time {
+      min-width: 70px;
+      text-align: right;
+      font-weight: bold;
+    }
+
+    .toggle-btn {
+      padding: 8px 12px;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .toggle-btn.on {
+      background-color: green;
+    }
+
+    .toggle-btn.off {
+      background-color: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Soccer Sub Tracker <span id="game-clock"></span></h1>
+
+    <div class="controls">
+      <button id="startGame">Start Game</button>
+      <button id="stopGame">Stop Game</button>
+      <button id="endGame">End Game</button>
+      <button id="resetGame">Reset Game</button>
+    </div>
+
+    <div id="playerList"></div>
+  </div>
+
+  <script>
+    const players = [];
+    let gameRunning = false;
+    let gameStartTime = null;
+    let clockInterval = null;
+    let pausedTime = 0;
+
+    function setActiveButton(id) {
+      document.querySelectorAll(".controls button").forEach(btn => btn.classList.remove("active"));
+      if (id) document.getElementById(id).classList.add("active");
+    }
+
+    function createPlayer(name = "", time = 0, isOn = true) {
+      const row = document.createElement("div");
+      row.className = "player-row";
+
+      const input = document.createElement("input");
+      input.placeholder = "# / Name";
+      input.value = name;
+
+      const benchTime = document.createElement("span");
+      benchTime.className = "bench-time";
+      const m = Math.floor(time / 60).toString().padStart(2, "0");
+      const s = (time % 60).toString().padStart(2, "0");
+      benchTime.textContent = `${m}:${s}`;
+
+      const toggle = document.createElement("button");
+      toggle.textContent = isOn ? "On" : "Off";
+      toggle.className = isOn ? "toggle-btn on" : "toggle-btn off";
+
+      const data = { input, benchTime, toggle, time, timer: null, isOn, startTime: null };
+      players.push(data);
+
+      toggle.onclick = () => {
+        if (!gameRunning) return;
+        if (data.isOn) {
+          toggle.textContent = "Off";
+          toggle.className = "toggle-btn off";
+          data.startTime = Date.now();
+          data.isOn = false;
+          data.timer = setInterval(() => {
+            const diff = Math.floor((Date.now() - data.startTime) / 1000);
+            let totalSec = data.time + diff;
+            let m = Math.floor(totalSec / 60).toString().padStart(2, "0");
+            let s = (totalSec % 60).toString().padStart(2, "0");
+            data.benchTime.textContent = `${m}:${s}`;
+          }, 1000);
+        } else {
+          toggle.textContent = "On";
+          toggle.className = "toggle-btn on";
+          data.isOn = true;
+          clearInterval(data.timer);
+          data.time += Math.floor((Date.now() - data.startTime) / 1000);
+          let m = Math.floor(data.time / 60).toString().padStart(2, "0");
+          let s = (data.time % 60).toString().padStart(2, "0");
+          data.benchTime.textContent = `${m}:${s}`;
+          data.timer = null;
+        }
+      };
+
+      row.append(input, benchTime, toggle);
+      document.getElementById("playerList").appendChild(row);
+    }
+
+    const savedState = JSON.parse(localStorage.getItem("player_state") || "[]");
+    if (savedState.length > 0) {
+      savedState.forEach(p => createPlayer(p.name, p.time, p.isOn));
+    } else {
+      const defaultPlayers = [
+        "1 Thomas Harman", "5 Oliver Bozinovski", "8 Alex Li", "10 Felix Rankin",
+        "13 Lachlan Eaton", "22 Ethan Lee", "26 Mo Siddiqui", "27 Ruben Freddi",
+        "28 Akash Nakier", "29 Harvey Knight", "30 Matt de Waal", "33 Harry Hur",
+        "34 Benny Baker", "40 Shu-Wei Hayden", "48 Jason Nguyen", "53 Adam Shine", ""
+      ];
+      defaultPlayers.forEach(name => createPlayer(name));
+    }
+
+    document.getElementById("startGame").onclick = () => {
+      gameRunning = true;
+      setActiveButton("startGame");
+      if (!gameStartTime) {
+        gameStartTime = Date.now();
+      } else {
+        gameStartTime += (Date.now() - pausedTime);
+      }
+      updateClock();
+      players.forEach(p => {
+        if (!p.isOn && !p.timer) {
+          p.startTime = Date.now();
+          p.timer = setInterval(() => {
+            const diff = Math.floor((Date.now() - p.startTime) / 1000);
+            let totalSec = p.time + diff;
+            let m = Math.floor(totalSec / 60).toString().padStart(2,"0");
+            let s = (totalSec % 60).toString().padStart(2,"0");
+            p.benchTime.textContent = `${m}:${s}`;
+          }, 1000);
+        }
+      });
+    };
+
+    document.getElementById("stopGame").onclick = () => {
+      gameRunning = false;
+      setActiveButton("stopGame");
+      pausedTime = Date.now();
+      clearInterval(clockInterval);
+      players.forEach(p => {
+        if (!p.isOn && p.startTime) {
+          clearInterval(p.timer);
+          p.time += Math.floor((Date.now() - p.startTime) / 1000);
+          let m = Math.floor(p.time / 60).toString().padStart(2,"0");
+          let s = (p.time % 60).toString().padStart(2,"0");
+          p.benchTime.textContent = `${m}:${s}`;
+          p.timer = null;
+        }
+      });
+    };
+
+    document.getElementById("endGame").onclick = () => {
+      gameRunning = false;
+      setActiveButton("endGame");
+      clearInterval(clockInterval);
+      const lines = [];
+      const state = [];
+      players.forEach((p, i) => {
+        if (!p.isOn && p.startTime) {
+          p.time += Math.floor((Date.now() - p.startTime) / 1000);
+          clearInterval(p.timer);
+        }
+        const label = p.input.value || `Player ${i+1}`;
+        const mins = Math.floor(p.time / 60).toString().padStart(2,"0");
+        const secs = (p.time % 60).toString().padStart(2,"0");
+        lines.push(`${label}: ${mins}:${secs}`);
+        state.push({ name: label, time: p.time, isOn: p.isOn });
+      });
+      localStorage.setItem("bench_report", lines.join("\n"));
+      localStorage.setItem("player_state", JSON.stringify(state));
+      window.location.href = "report.html";
+    };
+
+    document.getElementById("resetGame").onclick = () => {
+      setActiveButton("resetGame");
+      clearInterval(clockInterval);
+      gameStartTime = null;
+      pausedTime = 0;
+      document.getElementById("game-clock").textContent = "";
+      document.getElementById("playerList").innerHTML = "";
+      players.length = 0;
+      const defaultPlayers = [
+        "1 Thomas Harman", "5 Oliver Bozinovski", "8 Alex Li", "10 Felix Rankin",
+        "13 Lachlan Eaton", "22 Ethan Lee", "26 Mo Siddiqui", "27 Ruben Freddi",
+        "28 Akash Nakier", "29 Harvey Knight", "30 Matt de Waal", "33 Harry Hur",
+        "34 Benny Baker", "40 Shu-Wei Hayden", "48 Jason Nguyen", "53 Adam Shine", ""
+      ];
+      defaultPlayers.forEach(name => createPlayer(name));
+      localStorage.removeItem("player_state");
+    };
+
+    function updateClock() {
+      clockInterval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = Math.floor((now - gameStartTime) / 1000);
+        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const secs = (elapsed % 60).toString().padStart(2, '0');
+        document.getElementById("game-clock").textContent = `Time: ${mins}:${secs}`;
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
