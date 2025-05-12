@@ -1,290 +1,1105 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Soccer Sub Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    :root {
-      --primary: #0066cc;
-      --background: #f0f2f5;
-      --text: #333;
-      --card: #fff;
-      --border: #ddd;
-      --highlight: #f9f9f9;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bench Time Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #1f2937;
+            overscroll-behavior: none;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
 
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--background);
-      color: var(--text);
-      margin: 0;
-      padding: 0;
-      overflow-x: hidden;
-    }
+        .player-card {
+            transition: all 0.3s ease-in-out;
+            border-radius: 0.75rem;
+            position: relative;
+            z-index: 1;
+        }
+        .player-card.player-card-active-dropdown {
+            z-index: 20;
+        }
+        .player-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1), 0 6px 6px rgba(0,0,0,0.1);
+        }
+        .player-card.not-playing-this-game {
+            background-color: #e5e7eb;
+            opacity: 0.7;
+        }
+        .player-enter { opacity: 0; transform: translateY(20px) scale(0.95); }
+        .player-enter-active {
+            opacity: 1; transform: translateY(0) scale(1);
+            transition: opacity 350ms cubic-bezier(0.4, 0, 0.2, 1), transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .status-on-bench { background-color: #fee2e2; border-left: 5px solid #ef4444; }
+        .status-on-field { background-color: #dcfce7; border-left: 5px solid #22c55e; }
 
-    .container {
-  padding: 20px;
-  box-sizing: border-box;
-}
+        .form-input:focus, .file-input:focus-within { /* Added focus for file input wrapper */
+             box-shadow: 0 0 0 2px #c7d2fe;
+             border-color: #6366f1;
+        }
+        .file-input label {
+            cursor: pointer;
+        }
+
+        .btn {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #9ca3af !important;
+            border-color: #9ca3af !important;
+            color: #e5e7eb !important;
+        }
+        .btn:disabled:hover {
+            transform: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .btn-lg {
+             padding: 0.625rem 1.25rem;
+             font-size: 1rem;
+        }
+
+        .btn-primary { background-color: #4f46e5; color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: #4338ca; }
+        .btn-danger { background-color: #ef4444; color: white; }
+        .btn-danger:hover:not(:disabled) { background-color: #dc2626; }
+        .btn-warning { background-color: #f59e0b; color: white; }
+        .btn-warning:hover:not(:disabled) { background-color: #d97706; }
+        .btn-success { background-color: #22c55e; color: white; }
+        .btn-success:hover:not(:disabled) { background-color: #16a34a; }
+        .btn-secondary { background-color: #6b7280; color: white; }
+        .btn-secondary:hover:not(:disabled) { background-color: #4b5563; }
+        .btn-info { background-color: #3b82f6; color: white; }
+        .btn-info:hover:not(:disabled) { background-color: #2563eb; }
+        .btn-outline {
+            background-color: transparent;
+            color: #4f46e5;
+            border: 2px solid #4f46e5;
+        }
+        .btn-outline:hover:not(:disabled) { background-color: #e0e7ff; }
+        .btn-status-active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .btn-status-inactive {
+            background-color: #d1d5db;
+            color: #374151;
+        }
+        .btn-status-inactive:hover:not(:disabled) {
+            background-color: #9ca3af;
+        }
+        .btn-injury-active {
+            background-color: #ef4444;
+            color: white;
+        }
 
 
-    h1 {
-      text-align: center;
-      margin: 20px 0;
-    }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(31, 41, 55, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 200;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            background-color: white; padding: 1.5rem; border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+            width: 90%;
+            transform: scale(0.95) translateY(10px);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-content { transform: scale(1) translateY(0); }
 
-    #game-clock {
-      font-size: 18px;
-      margin-left: 10px;
-    }
-
-    .controls, .actions {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin: 20px auto;
-      padding: 0 16px; /* Added horizontal padding */
-    }
+        #reportModalContent { max-width: 800px; }
+        #editPlayerModalContent { max-width: 500px; }
+        #reportTable { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        #reportTable th, #reportTable td {
+            border: 1px solid #e5e7eb; padding: 0.5rem; text-align: left; font-size: 0.875rem;
+        }
+        #reportTable th { background-color: #f3f4f6; font-weight: 600; }
+        #reportTable tbody tr:nth-child(even) { background-color: #f9fafb; }
+        .highlight-green-bg { background-color: #dcfce7 !important; }
+        .highlight-red-bg { background-color: #fee2e2 !important; }
+        .highlight-orange-bg { background-color: #ffedd5 !important; }
 
 
-    .controls button {
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      font-size: 16px;
-      cursor: pointer;
-    }
+        #screenLockOverlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(0, 0, 0, 0.75); color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 300;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            text-align: center; padding: 2rem; cursor: pointer;
+        }
+        #screenLockOverlay.active { opacity: 1; visibility: visible; }
+        #screenLockOverlay .lock-icon { width: 4rem; height: 4rem; margin-bottom: 1rem; }
+        #unlockProgress {
+            width: 0%; height: 5px; background-color: #4f46e5;
+            position: absolute; bottom: 0; left: 0; transition: width 0.1s linear;
+        }
+        #gameTimerDisplayContainer {
+            background-color: #fff;
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            text-align: center;
+            margin-bottom: 1rem;
+            margin-top: 1rem;
+        }
+        #gameTimerDisplayContainer.game-active { border: 2px solid #22c55e; }
+        #gameTimerDisplayContainer.game-paused { border: 2px solid #f59e0b; }
 
-    .controls button.active {
-      background-color: #004c99;
-      font-weight: bold;
-      border: 2px solid #003366;
-    }
+        /* Dropdown Styles */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 50;
+            border-radius: 0.375rem;
+            padding: 0.5rem 0;
+        }
+        .dropdown-content button {
+            color: black;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            font-size: 0.875rem;
+        }
+        .dropdown-content button:hover:not(:disabled) {background-color: #f1f1f1;}
+        .dropdown-content button:disabled {
+            color: #9ca3af;
+            cursor: not-allowed;
+            background-color: #f9f9f9 !important;
+        }
+        .dropdown-content button:disabled:hover {
+             background-color: #f9f9f9 !important;
+        }
+        .dropdown.active .dropdown-content {
+            display: block;
+        }
+        .player-photo-sm {
+            width: 3rem; /* 48px */
+            height: 3rem; /* 48px */
+            border-radius: 9999px; /* full */
+            object-fit: cover;
+            margin-right: 1rem; /* mr-4 */
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
 
-    .player-row {
-      display: flex;
-      align-items: center;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      margin-bottom: 8px;
-      padding: 10px;
-      gap: 10px;
-    }
-
-    .player-row input {
-      flex: 1;
-      padding: 8px;
-    }
-
-    .bench-time {
-      min-width: 70px;
-      text-align: right;
-      font-weight: bold;
-    }
-
-    .toggle-btn {
-      padding: 8px 12px;
-      border: none;
-      color: white;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-
-    .toggle-btn.on {
-      background-color: green;
-    }
-
-    .toggle-btn.off {
-      background-color: red;
-    }
-  </style>
+    </style>
 </head>
-<body>
-  <div class="container">
-    <h1>Soccer Sub Tracker <span id="game-clock"></span></h1>
+<body class="text-gray-800 p-4 md:p-8">
+    <div class="container mx-auto max-w-4xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-indigo-700">Bench Time Tracker</h1>
+            <p class="text-gray-600 mt-2">Monitor player bench time, status, and game clock.</p>
+        </header>
 
-    <div class="controls">
-      <button id="startGame">Start Game</button>
-      <button id="stopGame">Stop Game</button>
-      <button id="endGame">End Game</button>
-      <button id="resetGame">Reset Game</button>
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Add New Player</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                <input type="number" id="playerNumberInput" placeholder="Number" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-shadow">
+                <input type="text" id="playerNameInput" placeholder="Player's name" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-shadow">
+                <div class="sm:col-span-2">
+                     <label for="playerPhotoInput" class="block text-sm font-medium text-gray-700 mb-1">Player Photo (Optional)</label>
+                    <input type="file" id="playerPhotoInput" accept="image/*" class="file-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-gray-300 rounded-lg p-2">
+                </div>
+                <div class="sm:col-span-2 text-right">
+                    <button onclick="addPlayer()" class="btn btn-primary btn-lg transform hover:scale-105">
+                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        Add Player
+                    </button>
+                </div>
+            </div>
+            <div id="addPlayerError" class="text-red-500 text-sm mt-2 h-5"></div>
+        </div>
+
+
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Actions & Reports</h2>
+            <div class="flex flex-wrap gap-4 items-center">
+                <button onclick="showConfirmationModal('resetAll')" class="btn btn-danger btn-lg transform hover:scale-105">
+                    Reset All Times
+                </button>
+                <button onclick="showReportModal()" class="btn btn-secondary btn-lg transform hover:scale-105">
+                    Generate Bench Report
+                </button>
+                <button id="toggleLockButton" onclick="toggleScreenLock()" class="btn btn-outline btn-lg transform hover:scale-105">
+                    <svg id="lockIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <svg id="unlockIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                    <span id="lockButtonText">Lock Screen</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="gameTimerDisplayContainer" class="flex flex-col items-center gap-2">
+            <p class="text-2xl font-semibold text-gray-700">
+                Game Time: <span id="gameTimeDisplay" class="font-bold text-indigo-600">00:00</span>
+            </p>
+            <button id="toggleGameTimeButton" onclick="manualToggleGameTimer()" class="btn btn-warning">
+                Start Game Clock
+            </button>
+            <p id="gameStatusMessage" class="text-sm text-gray-500 mt-1">Game has not started.</p>
+        </div>
+
+        <div id="playerList" class="space-y-4"></div>
+
+        <div id="noPlayersMessage" class="hidden text-center text-gray-500 mt-10 p-6 bg-white rounded-xl shadow-lg">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p class="mt-4 text-xl">No players added yet.</p>
+            <p class="text-sm">Use the input fields above to add players to your roster.</p>
+        </div>
     </div>
 
-    <div id="playerList"></div>
-  </div>
+    <div id="editPlayerModal" class="modal-overlay">
+        <div id="editPlayerModalContent" class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-semibold text-gray-800">Edit Player Details</h3>
+                <button onclick="hideEditPlayerModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <input type="hidden" id="editPlayerIdInput">
+            <div class="space-y-4">
+                <div>
+                    <label for="modalEditPlayerNumberInput" class="block text-sm font-medium text-gray-700 mb-1">Player Number</label>
+                    <input type="number" id="modalEditPlayerNumberInput" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-shadow">
+                </div>
+                <div>
+                    <label for="modalEditPlayerNameInput" class="block text-sm font-medium text-gray-700 mb-1">Player Name</label>
+                    <input type="text" id="modalEditPlayerNameInput" class="form-input w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-shadow">
+                </div>
+                <div>
+                    <label for="modalEditPlayerPhotoInput" class="block text-sm font-medium text-gray-700 mb-1">Change Photo (Optional)</label>
+                    <input type="file" id="modalEditPlayerPhotoInput" accept="image/*" class="file-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-gray-300 rounded-lg p-2">
+                </div>
+                <div id="modalEditPlayerError" class="text-red-500 text-sm h-5"></div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="hideEditPlayerModal()" class="btn bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4">Cancel</button>
+                <button onclick="savePlayerEdits()" class="btn btn-success py-2 px-4">Save Changes</button>
+            </div>
+        </div>
+    </div>
 
-  <script>
-    const players = [];
-    let gameRunning = false;
-    let gameStartTime = null;
-    let clockInterval = null;
-    let pausedTime = 0;
 
-    function setActiveButton(id) {
-      document.querySelectorAll(".controls button").forEach(btn => btn.classList.remove("active"));
-      if (id) document.getElementById(id).classList.add("active");
-    }
+    <div id="confirmationModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 450px;">
+            <h3 id="modalTitle" class="text-xl font-semibold mb-2 text-gray-800">Confirm Action</h3>
+            <p id="modalMessage" class="text-gray-600 mb-4">Are you sure you want to proceed?</p>
+            <div id="resetAllConfirmationDetails" class="hidden my-4">
+                <label for="confirmationCodeInput" class="block text-sm font-medium text-gray-700 mb-1">To confirm, please type '123' below:</label>
+                <input type="text" id="confirmationCodeInput" class="form-input w-full p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none" autocomplete="off" placeholder="123">
+                <p id="confirmationCodeError" class="text-red-500 text-xs mt-1 h-4"></p>
+            </div>
+            <div class="flex justify-end gap-3 mt-2">
+                <button id="modalCancelButton" class="btn bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4">Cancel</button>
+                <button id="modalConfirmButton" class="btn btn-danger py-2 px-4">Confirm</button>
+            </div>
+        </div>
+    </div>
 
-    function createPlayer(name = "", time = 0, isOn = true) {
-      const row = document.createElement("div");
-      row.className = "player-row";
+    <div id="reportModal" class="modal-overlay">
+        <div id="reportModalContent" class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-semibold text-gray-800">Bench Time Report</h3>
+                <button onclick="hideReportModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="reportSummary" class="mb-4 text-sm text-gray-700">
+                <p>Average Bench Time (Playing Players): <span id="reportAverageBenchTime" class="font-semibold">N/A</span></p>
+            </div>
+            <div id="reportContent" class="max-h-[60vh] overflow-y-auto mb-6">
+                <table id="reportTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Playing</th>
+                            <th>Keeper</th>
+                            <th>Injured</th>
+                            <th>Total Bench Time</th>
+                            <th>Bench % of Game</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTableBody"></tbody>
+                </table>
+                 <p id="noPlayersForReport" class="text-center text-gray-500 py-4 hidden">No players available to report.</p>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button onclick="hideReportModal()" class="btn bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4">Close</button>
+                <button onclick="downloadReportAsPDF()" id="downloadPdfButton" class="btn btn-success py-2 px-4">Download PDF</button>
+            </div>
+        </div>
+    </div>
 
-      const input = document.createElement("input");
-      input.placeholder = "# / Name";
-      input.value = name;
+    <div id="screenLockOverlay">
+        <svg class="lock-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6zm-1.5-1.5a.75.75 0 00-1.5 0v.75a.75.75 0 001.5 0v-.75z" clip-rule="evenodd"></path></svg>
+        <h2 class="text-2xl font-semibold mb-2">Screen Locked</h2>
+        <p id="unlockInstructions" class="text-lg">Tap and hold to unlock</p>
+        <div id="unlockProgress"></div>
+    </div>
 
-      const benchTime = document.createElement("span");
-      benchTime.className = "bench-time";
-      const m = Math.floor(time / 60).toString().padStart(2, "0");
-      const s = (time % 60).toString().padStart(2, "0");
-      benchTime.textContent = `${m}:${s}`;
 
-      const toggle = document.createElement("button");
-      toggle.textContent = isOn ? "On" : "Off";
-      toggle.className = isOn ? "toggle-btn on" : "toggle-btn off";
+    <script>
+        const { jsPDF } = window.jspdf;
 
-      const data = { input, benchTime, toggle, time, timer: null, isOn, startTime: null };
-      players.push(data);
+        let players = [];
+        let globalTimerInterval;
+        let actionToConfirm = null;
+        let isScreenLocked = false;
+        let unlockHoldTimer = null;
+        let unlockHoldStartTime = 0;
+        const UNLOCK_HOLD_DURATION = 1500;
 
-      toggle.onclick = () => {
-        if (!gameRunning) return;
-        if (data.isOn) {
-          toggle.textContent = "Off";
-          toggle.className = "toggle-btn off";
-          data.startTime = Date.now();
-          data.isOn = false;
-          data.timer = setInterval(() => {
-            const diff = Math.floor((Date.now() - data.startTime) / 1000);
-            let totalSec = data.time + diff;
-            let m = Math.floor(totalSec / 60).toString().padStart(2, "0");
-            let s = (totalSec % 60).toString().padStart(2, "0");
-            data.benchTime.textContent = `${m}:${s}`;
-          }, 1000);
-        } else {
-          toggle.textContent = "On";
-          toggle.className = "toggle-btn on";
-          data.isOn = true;
-          clearInterval(data.timer);
-          data.time += Math.floor((Date.now() - data.startTime) / 1000);
-          let m = Math.floor(data.time / 60).toString().padStart(2, "0");
-          let s = (data.time % 60).toString().padStart(2, "0");
-          data.benchTime.textContent = `${m}:${s}`;
-          data.timer = null;
+        let gameStartTime = null;
+        let accumulatedGameTime = 0;
+        let isGameActive = false;
+        let gameTimerInterval = null;
+
+        // Main DOM Elements
+        const playerListDiv = document.getElementById('playerList');
+        const noPlayersMessageDiv = document.getElementById('noPlayersMessage');
+        const playerNumberInput = document.getElementById('playerNumberInput');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const addPlayerErrorDiv = document.getElementById('addPlayerError');
+        const playerPhotoInput = document.getElementById('playerPhotoInput'); // For inline add player
+
+        // Edit Player Modal DOM Elements
+        const editPlayerModal = document.getElementById('editPlayerModal');
+        const editPlayerIdInput = document.getElementById('editPlayerIdInput');
+        const modalEditPlayerNumberInput = document.getElementById('modalEditPlayerNumberInput');
+        const modalEditPlayerNameInput = document.getElementById('modalEditPlayerNameInput');
+        const modalEditPlayerErrorDiv = document.getElementById('modalEditPlayerError');
+        const modalEditPlayerPhotoInput = document.getElementById('modalEditPlayerPhotoInput');
+
+
+        // Confirmation Modal DOM Elements
+        const confirmationModal = document.getElementById('confirmationModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalConfirmButton = document.getElementById('modalConfirmButton');
+        const modalCancelButton = document.getElementById('modalCancelButton');
+        const resetAllConfirmationDetailsDiv = document.getElementById('resetAllConfirmationDetails');
+        const confirmationCodeInput = document.getElementById('confirmationCodeInput');
+        const confirmationCodeError = document.getElementById('confirmationCodeError');
+
+        // Report Modal DOM Elements
+        const reportModal = document.getElementById('reportModal');
+        const reportTableBody = document.getElementById('reportTableBody');
+        const noPlayersForReportMsg = document.getElementById('noPlayersForReport');
+        const downloadPdfButton = document.getElementById('downloadPdfButton');
+        const reportAverageBenchTimeDisplay = document.getElementById('reportAverageBenchTime');
+
+
+        // Screen Lock DOM Elements
+        const toggleLockButton = document.getElementById('toggleLockButton');
+        const lockButtonText = document.getElementById('lockButtonText');
+        const lockIcon = document.getElementById('lockIcon');
+        const unlockIcon = document.getElementById('unlockIcon');
+        const screenLockOverlay = document.getElementById('screenLockOverlay');
+        const unlockProgress = document.getElementById('unlockProgress');
+        const unlockInstructions = document.getElementById('unlockInstructions');
+
+        // Game Timer DOM Elements
+        const gameTimeDisplay = document.getElementById('gameTimeDisplay');
+        const gameStatusMessage = document.getElementById('gameStatusMessage');
+        const gameTimerDisplayContainer = document.getElementById('gameTimerDisplayContainer');
+        const toggleGameTimeButton = document.getElementById('toggleGameTimeButton');
+
+
+        function loadAllStateFromStorage() {
+            const storedPlayers = localStorage.getItem('soccerBenchPlayers_v2');
+            let playersLoadedFromStorage = false;
+            if (storedPlayers) {
+                try {
+                    const parsedPlayers = JSON.parse(storedPlayers);
+                    if (Array.isArray(parsedPlayers) && parsedPlayers.length > 0) {
+                        players = parsedPlayers.map(player => ({
+                            ...player,
+                            isKeeper: player.isKeeper === true,
+                            isInjured: player.isInjured === true,
+                            isPlayingThisGame: player.isPlayingThisGame !== undefined ? player.isPlayingThisGame : true,
+                            photoDataUrl: player.photoDataUrl || null, // Load photo
+                            benchStartTime: (player.benchStartTime && typeof player.benchStartTime === 'string') ? new Date(player.benchStartTime).getTime() : (isNaN(player.benchStartTime) ? null : player.benchStartTime),
+                            accumulatedBenchTime: Number(player.accumulatedBenchTime) || 0
+                        }));
+                        playersLoadedFromStorage = true;
+                    } else { players = []; }
+                } catch (e) { console.error("Error parsing players:", e); players = []; }
+            }
+
+            if (!playersLoadedFromStorage) {
+                const defaultPlayersData = [
+                    { id: 1001, number: "1", name: "Matt" }, { id: 1002, number: "2", name: "Adam" },
+                    { id: 1003, number: "3", name: "Steve" }, { id: 1004, number: "4", name: "Tom" },
+                    { id: 1005, number: "5", name: "Ken" }, { id: 1006, number: "6", name: "Henry" },
+                    { id: 1007, number: "7", name: "John" }, { id: 1008, number: "7", name: "Paul" },
+                    { id: 1009, number: "9", name: "Jack" }, { id: 1010, number: "10", name: "Donald" },
+                    { id: 1011, number: "10", name: "Sam" }, { id: 1012, number: "11", name: "Zac" },
+                    { id: 1013, number: "12", name: "William" }, { id: 1014, number: "13", name: "Andrew" },
+                    { id: 1015, number: "14", name: "Michael" }, { id: 1016, number: "15", name: "Clark" },
+                    { id: 1017, number: "16", name: "Mo" }, { id: 1018, number: "17", name: "James" }
+                ];
+                players = defaultPlayersData.map(p => ({
+                    ...p, isOnBench: false, benchStartTime: null, accumulatedBenchTime: 0,
+                    isKeeper: false, isInjured: false, isPlayingThisGame: true, photoDataUrl: null
+                }));
+            }
+
+            const storedGameTime = localStorage.getItem('soccerGameTimerState');
+            if (storedGameTime) {
+                try {
+                    const gameState = JSON.parse(storedGameTime);
+                    accumulatedGameTime = Number(gameState.accumulatedGameTime) || 0;
+                    isGameActive = gameState.isGameActive === true;
+                    gameStartTime = gameState.gameStartTime ? Number(gameState.gameStartTime) : null;
+                    if (isGameActive && gameStartTime) {
+                        const timePassedSinceClose = Date.now() - gameStartTime;
+                        accumulatedGameTime += timePassedSinceClose;
+                        gameStartTime = Date.now();
+                        if (gameTimerInterval) clearInterval(gameTimerInterval);
+                        gameTimerInterval = setInterval(updateGameClockDisplay, 1000);
+                    }
+                } catch (e) { console.error("Error parsing game state:", e); accumulatedGameTime = 0; isGameActive = false; gameStartTime = null; }
+            }
+
+            updateGameClockDisplay();
+            updateToggleGameTimeButton();
         }
-      };
+        function savePlayersToStorage() { localStorage.setItem('soccerBenchPlayers_v2', JSON.stringify(players)); }
+        function saveGameTimerState() { const gs = { accumulatedGameTime, isGameActive, gameStartTime }; localStorage.setItem('soccerGameTimerState', JSON.stringify(gs)); }
 
-      row.append(input, benchTime, toggle);
-      document.getElementById("playerList").appendChild(row);
-    }
 
-    const savedState = JSON.parse(localStorage.getItem("player_state") || "[]");
-    if (savedState.length > 0) {
-      savedState.forEach(p => createPlayer(p.name, p.time, p.isOn));
-    } else {
-      const defaultPlayers = [
-        "1 Thomas Harman", "5 Oliver Bozinovski", "8 Alex Li", "10 Felix Rankin",
-        "13 Lachlan Eaton", "22 Ethan Lee", "26 Mo Siddiqui", "27 Ruben Freddi",
-        "28 Akash Nakier", "29 Harvey Knight", "30 Matt de Waal", "33 Harry Hur",
-        "34 Benny Baker", "40 Shu-Wei Hayden", "48 Jason Nguyen", "53 Adam Shine", ""
-      ];
-      defaultPlayers.forEach(name => createPlayer(name));
-    }
+        function formatTime(ms) { if(ms<0)ms=0;let ts=Math.floor(ms/1000);let h=Math.floor(ts/3600);let m=Math.floor((ts%3600)/60);let s=ts%60;s=String(s).padStart(2,'0');m=String(m).padStart(2,'0');if(h>0){h=String(h).padStart(2,'0');return`${h}:${m}:${s}`;};return`${m}:${s}`; }
 
-    document.getElementById("startGame").onclick = () => {
-      gameRunning = true;
-      setActiveButton("startGame");
-      if (!gameStartTime) {
-        gameStartTime = Date.now();
-      } else {
-        gameStartTime += (Date.now() - pausedTime);
-      }
-      updateClock();
-      players.forEach(p => {
-        if (!p.isOn && !p.timer) {
-          p.startTime = Date.now();
-          p.timer = setInterval(() => {
-            const diff = Math.floor((Date.now() - p.startTime) / 1000);
-            let totalSec = p.time + diff;
-            let m = Math.floor(totalSec / 60).toString().padStart(2,"0");
-            let s = (totalSec % 60).toString().padStart(2,"0");
-            p.benchTime.textContent = `${m}:${s}`;
-          }, 1000);
+        function showInlineAddPlayerError(message) {
+            addPlayerErrorDiv.textContent = message;
+            if (message) [playerNameInput, playerNumberInput].forEach(input => input.classList.add('border-red-500'));
+            setTimeout(() => {
+                addPlayerErrorDiv.textContent = "";
+                [playerNameInput, playerNumberInput].forEach(input => input.classList.remove('border-red-500'));
+            }, 3000);
         }
-      });
-    };
 
-    document.getElementById("stopGame").onclick = () => {
-      gameRunning = false;
-      setActiveButton("stopGame");
-      pausedTime = Date.now();
-      clearInterval(clockInterval);
-      players.forEach(p => {
-        if (!p.isOn && p.startTime) {
-          clearInterval(p.timer);
-          p.time += Math.floor((Date.now() - p.startTime) / 1000);
-          let m = Math.floor(p.time / 60).toString().padStart(2,"0");
-          let s = (p.time % 60).toString().padStart(2,"0");
-          p.benchTime.textContent = `${m}:${s}`;
-          p.timer = null;
+        async function addPlayer() {
+            if(isScreenLocked)return;
+            const newPlayerNumber = playerNumberInput.value.trim();
+            const newPlayerName = playerNameInput.value.trim();
+            const photoFile = playerPhotoInput.files[0];
+
+            addPlayerErrorDiv.textContent='';
+            [playerNumberInput, playerNameInput, playerPhotoInput].forEach(input=>input.classList.remove('border-red-500','border-yellow-500'));
+
+            if(newPlayerName===""&&newPlayerNumber===""){showInlineAddPlayerError("Player name and number cannot be empty.");return;}
+            if(newPlayerNumber===""){showInlineAddPlayerError("Player number cannot be empty.");playerNumberInput.focus();return;}
+            if(newPlayerName===""){showInlineAddPlayerError("Player name cannot be empty.");playerNameInput.focus();return;}
+            if(isNaN(parseInt(newPlayerNumber))){showInlineAddPlayerError("Player number must be a valid number.");playerNumberInput.focus();return;}
+            if(players.some(p=>p.name.toLowerCase()===newPlayerName.toLowerCase())){ showInlineAddPlayerError(`Player name "${newPlayerName}" already exists.`); playerNameInput.classList.add('border-yellow-500');playerNameInput.focus();return; }
+            if(players.some(p=>p.number===newPlayerNumber)){ showInlineAddPlayerError(`Player number "${newPlayerNumber}" already exists.`); playerNumberInput.classList.add('border-yellow-500');playerNumberInput.focus();return; }
+
+            let photoDataUrl = null;
+            if (photoFile) {
+                try {
+                    photoDataUrl = await readFileAsDataURL(photoFile);
+                } catch (error) {
+                    console.error("Error reading photo file:", error);
+                    showInlineAddPlayerError("Error processing photo. Please try another image.");
+                    return;
+                }
+            }
+
+            const newPlayerObject={id:Date.now(),number:newPlayerNumber,name:newPlayerName,isOnBench:false,benchStartTime:null,accumulatedBenchTime:0, isKeeper: false, isInjured: false, isPlayingThisGame: true, photoDataUrl: photoDataUrl };
+            players.push(newPlayerObject);
+            playerNumberInput.value = "";
+            playerNameInput.value = "";
+            playerPhotoInput.value = ""; // Clear file input
+            playerNumberInput.focus();
+            renderPlayers();savePlayersToStorage();
         }
-      });
-    };
 
-    document.getElementById("endGame").onclick = () => {
-      gameRunning = false;
-      setActiveButton("endGame");
-      clearInterval(clockInterval);
-      const lines = [];
-      const state = [];
-      players.forEach((p, i) => {
-        if (!p.isOn && p.startTime) {
-          p.time += Math.floor((Date.now() - p.startTime) / 1000);
-          clearInterval(p.timer);
+        function showEditPlayerModal(playerId) {
+            if (isScreenLocked) return;
+            const playerToEdit = players.find(p => p.id === playerId);
+            if (!playerToEdit) return;
+            editPlayerIdInput.value = playerId;
+            modalEditPlayerNumberInput.value = playerToEdit.number;
+            modalEditPlayerNameInput.value = playerToEdit.name;
+            modalEditPlayerPhotoInput.value = ""; // Clear file input for new selection
+            modalEditPlayerErrorDiv.textContent = '';
+            [modalEditPlayerNumberInput, modalEditPlayerNameInput, modalEditPlayerPhotoInput].forEach(input => input.classList.remove('border-red-500', 'border-yellow-500'));
+            editPlayerModal.classList.add('active');
+            modalEditPlayerNumberInput.focus();
         }
-        const label = p.input.value || `Player ${i+1}`;
-        const mins = Math.floor(p.time / 60).toString().padStart(2,"0");
-        const secs = (p.time % 60).toString().padStart(2,"0");
-        lines.push(`${label}: ${mins}:${secs}`);
-        state.push({ name: label, time: p.time, isOn: p.isOn });
-      });
-      localStorage.setItem("bench_report", lines.join("\n"));
-      localStorage.setItem("player_state", JSON.stringify(state));
-      window.location.href = "report.html";
-    };
+        function hideEditPlayerModal() { editPlayerModal.classList.remove('active'); }
+        function showModalEditPlayerError(message) { modalEditPlayerErrorDiv.textContent = message; if (message) [modalEditPlayerNameInput, modalEditPlayerNumberInput].forEach(input => input.classList.add('border-red-500')); }
 
-    document.getElementById("resetGame").onclick = () => {
-      setActiveButton("resetGame");
-      clearInterval(clockInterval);
-      gameStartTime = null;
-      pausedTime = 0;
-      document.getElementById("game-clock").textContent = "";
-      document.getElementById("playerList").innerHTML = "";
-      players.length = 0;
-      const defaultPlayers = [
-        "1 Thomas Harman", "5 Oliver Bozinovski", "8 Alex Li", "10 Felix Rankin",
-        "13 Lachlan Eaton", "22 Ethan Lee", "26 Mo Siddiqui", "27 Ruben Freddi",
-        "28 Akash Nakier", "29 Harvey Knight", "30 Matt de Waal", "33 Harry Hur",
-        "34 Benny Baker", "40 Shu-Wei Hayden", "48 Jason Nguyen", "53 Adam Shine", ""
-      ];
-      defaultPlayers.forEach(name => createPlayer(name));
-      localStorage.removeItem("player_state");
-    };
+        async function savePlayerEdits() {
+            if (isScreenLocked) return;
+            const playerIdToEdit = parseInt(editPlayerIdInput.value);
+            const newNumber = modalEditPlayerNumberInput.value.trim();
+            const newName = modalEditPlayerNameInput.value.trim();
+            const newPhotoFile = modalEditPlayerPhotoInput.files[0];
 
-    function updateClock() {
-      clockInterval = setInterval(() => {
-        const now = Date.now();
-        const elapsed = Math.floor((now - gameStartTime) / 1000);
-        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
-        const secs = (elapsed % 60).toString().padStart(2, '0');
-        document.getElementById("game-clock").textContent = `Time: ${mins}:${secs}`;
-      }, 1000);
-    }
-  </script>
+            modalEditPlayerErrorDiv.textContent = '';
+            [modalEditPlayerNumberInput, modalEditPlayerNameInput, modalEditPlayerPhotoInput].forEach(input => input.classList.remove('border-red-500', 'border-yellow-500'));
+
+            if (newName === "" && newNumber === "") { showModalEditPlayerError("Player name and number cannot be empty."); return; }
+            if (newNumber === "") { showModalEditPlayerError("Player number cannot be empty."); modalEditPlayerNumberInput.focus(); return; }
+            if (newName === "") { showModalEditPlayerError("Player name cannot be empty."); modalEditPlayerNameInput.focus(); return; }
+            if (isNaN(parseInt(newNumber))) { showModalEditPlayerError("Player number must be a valid number."); modalEditPlayerNumberInput.focus(); return; }
+            if (players.some(p => p.id !== playerIdToEdit && p.name.toLowerCase() === newName.toLowerCase())) { showModalEditPlayerError(`Player name "${newName}" already used by another player.`); modalEditPlayerNameInput.classList.add('border-yellow-500'); modalEditPlayerNameInput.focus(); return; }
+            if (players.some(p => p.id !== playerIdToEdit && p.number === newNumber)) { showModalEditPlayerError(`Player number "${newNumber}" already used by another player.`); modalEditPlayerNumberInput.classList.add('border-yellow-500'); modalEditPlayerNumberInput.focus(); return; }
+
+            const playerToUpdate = players.find(p => p.id === playerIdToEdit);
+            if (playerToUpdate) {
+                playerToUpdate.name = newName;
+                playerToUpdate.number = newNumber;
+
+                if (newPhotoFile) {
+                    try {
+                        playerToUpdate.photoDataUrl = await readFileAsDataURL(newPhotoFile);
+                    } catch (error) {
+                        console.error("Error reading new photo file for edit:", error);
+                        showModalEditPlayerError("Error processing new photo. Changes not saved.");
+                        return;
+                    }
+                }
+                // If no new photo, existing photoDataUrl remains unchanged.
+
+                renderPlayers();
+                savePlayersToStorage();
+                hideEditPlayerModal();
+            } else {
+                showModalEditPlayerError("Error: Player not found for update.");
+            }
+        }
+
+        // Helper function to read file as Data URL
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (error) => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+
+        function toggleKeeperStatus(playerId) { if(isScreenLocked)return;const tp=players.find(p=>p.id===playerId);if(!tp||!tp.isPlayingThisGame)return;const cik=tp.isKeeper;if(!cik){players.forEach(p=>{if(p.id!==playerId&&p.isKeeper)p.isKeeper=false;});tp.isKeeper=true;}else{tp.isKeeper=false;}renderPlayers();savePlayersToStorage(); }
+
+        function toggleInjuryStatus(playerId) {
+            if (isScreenLocked) return;
+            const player = players.find(p => p.id === playerId);
+            if (player && player.isPlayingThisGame) {
+                player.isInjured = !player.isInjured;
+                renderPlayers();
+                savePlayersToStorage();
+            }
+        }
+
+        function toggleIsPlayingStatus(playerId) {
+            if (isScreenLocked) return;
+            const player = players.find(p => p.id === playerId);
+            if (player) {
+                player.isPlayingThisGame = !player.isPlayingThisGame;
+                if (!player.isPlayingThisGame && player.isOnBench) {
+                    if (player.benchStartTime) {
+                         if (isGameActive) player.accumulatedBenchTime += (Date.now() - player.benchStartTime);
+                    }
+                    player.isOnBench = false;
+                    player.benchStartTime = null;
+                }
+                if (!player.isPlayingThisGame && player.isKeeper) {
+                    player.isKeeper = false;
+                }
+                if (!player.isPlayingThisGame && player.isInjured) {
+                    player.isInjured = false;
+                }
+                renderPlayers();
+                savePlayersToStorage();
+            }
+        }
+
+
+        function toggleBenchStatus(pid) {
+            if(isScreenLocked)return;
+            const p=players.find(pl=>pl.id===pid);
+            if(!p || !p.isPlayingThisGame) return;
+
+            if(p.isOnBench){
+                if(p.benchStartTime && isGameActive) {
+                    p.accumulatedBenchTime+=(Date.now()-p.benchStartTime);
+                }
+                p.isOnBench=false;
+                p.benchStartTime=null;
+            } else {
+                p.isOnBench=true;
+                if (isGameActive) {
+                    p.benchStartTime=Date.now();
+                } else {
+                    p.benchStartTime=null;
+                }
+            }
+            renderPlayers();savePlayersToStorage();
+        }
+        function performResetAllBenchTimes() {
+            players.forEach(p=>{
+                p.accumulatedBenchTime=0;
+                if(p.isOnBench && p.isPlayingThisGame && isGameActive) {
+                    p.benchStartTime=Date.now();
+                } else {
+                    p.benchStartTime=null;
+                }
+            });
+            accumulatedGameTime=0;gameStartTime=null; isGameActive = false;
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            updateGameClockDisplay();saveGameTimerState(); updateToggleGameTimeButton();
+            renderPlayers();savePlayersToStorage();hideConfirmationModal();
+        }
+
+        function startGameClock() {
+            if(!isGameActive){
+                isGameActive=true;
+                gameStartTime = Date.now();
+                if (gameTimerInterval) clearInterval(gameTimerInterval);
+                gameTimerInterval = setInterval(updateGameClockDisplay, 1000);
+
+                players.forEach(p => {
+                    if (p.isOnBench && p.isPlayingThisGame && p.benchStartTime === null) {
+                        p.benchStartTime = Date.now();
+                    }
+                });
+                renderPlayers();
+                updateToggleGameTimeButton();
+                saveGameTimerState();
+            }
+        }
+
+        function pauseGameClock() {
+            if (isGameActive) {
+                accumulatedGameTime += (Date.now() - gameStartTime);
+                isGameActive = false;
+                if (gameTimerInterval) clearInterval(gameTimerInterval);
+                gameStartTime = null;
+
+                players.forEach(p => {
+                    if (p.isOnBench && p.isPlayingThisGame && p.benchStartTime !== null) {
+                        p.accumulatedBenchTime += (Date.now() - p.benchStartTime);
+                        p.benchStartTime = null;
+                    }
+                });
+                renderPlayers();
+                updateToggleGameTimeButton();
+                updateGameClockDisplay();
+                saveGameTimerState();
+            } else if (accumulatedGameTime === 0 && gameStartTime === null) {
+                 updateToggleGameTimeButton();
+                 updateGameClockDisplay();
+            }
+        }
+
+        function manualToggleGameTimer() {
+            if (isScreenLocked) return;
+            if (isGameActive) {
+                pauseGameClock();
+            } else {
+                startGameClock();
+            }
+        }
+
+        function updateToggleGameTimeButton() {
+            if (isGameActive) {
+                toggleGameTimeButton.textContent = "Pause Game Clock";
+                toggleGameTimeButton.classList.remove('btn-warning');
+                toggleGameTimeButton.classList.add('btn-success');
+            } else {
+                toggleGameTimeButton.textContent = "Start Game Clock";
+                toggleGameTimeButton.classList.remove('btn-success');
+                toggleGameTimeButton.classList.add('btn-warning');
+            }
+        }
+
+
+        function updateGameClockDisplay() {
+            let currentTimeToDisplay = accumulatedGameTime;
+            if (isGameActive && gameStartTime) {
+                currentTimeToDisplay += (Date.now() - gameStartTime);
+            }
+            gameTimeDisplay.textContent = formatTime(currentTimeToDisplay);
+
+            if (isGameActive) {
+                gameStatusMessage.textContent = "Game is ON";
+                gameTimerDisplayContainer.classList.add('game-active');
+                gameTimerDisplayContainer.classList.remove('game-paused');
+            } else {
+                 gameStatusMessage.textContent = accumulatedGameTime > 0 || currentTimeToDisplay > 0 ? "Game Paused" : "Game has not started.";
+                gameTimerDisplayContainer.classList.remove('game-active');
+                if (accumulatedGameTime > 0 || currentTimeToDisplay > 0) {
+                    gameTimerDisplayContainer.classList.add('game-paused');
+                } else {
+                    gameTimerDisplayContainer.classList.remove('game-paused');
+                }
+            }
+             updateToggleGameTimeButton();
+        }
+
+
+        function showConfirmationModal(action) { if(isScreenLocked)return;actionToConfirm=action;resetAllConfirmationDetailsDiv.classList.add('hidden');confirmationCodeInput.value='';confirmationCodeError.textContent='';if(action==='resetAll'){modalTitle.textContent="Reset All Times?";modalMessage.textContent="This will reset ALL player bench times AND the game timer to 00:00. Player Keeper/Injury/Playing status will NOT be affected. This action cannot be undone.";resetAllConfirmationDetailsDiv.classList.remove('hidden');modalConfirmButton.className=`btn btn-danger btn-lg py-2 px-4`;}confirmationModal.classList.add('active');if(action==='resetAll')confirmationCodeInput.focus();}
+        function hideConfirmationModal() { confirmationModal.classList.remove('active'); resetAllConfirmationDetailsDiv.classList.add('hidden'); confirmationCodeInput.value = ''; confirmationCodeError.textContent = ''; actionToConfirm = null; }
+        modalConfirmButton.onclick = () => { confirmationCodeError.textContent='';if(actionToConfirm==='resetAll'){if(confirmationCodeInput.value==="123")performResetAllBenchTimes();else{confirmationCodeError.textContent="Incorrect code. Please enter '123' to confirm.";confirmationCodeInput.focus();confirmationCodeInput.select();return;}}};
+        modalCancelButton.onclick = hideConfirmationModal;
+
+        function renderPlayers() {
+            playerListDiv.innerHTML='';
+            if(players.length===0){noPlayersMessageDiv.classList.remove('hidden');playerListDiv.classList.add('hidden');}
+            else{
+                noPlayersMessageDiv.classList.add('hidden');playerListDiv.classList.remove('hidden');
+                const sp=[...players].sort((a,b)=>{
+                    if (a.isPlayingThisGame !== b.isPlayingThisGame) return a.isPlayingThisGame ? -1 : 1;
+                    if (a.isOnBench !== b.isOnBench) return a.isOnBench ? -1 : 1;
+                    return parseInt(a.number)-parseInt(b.number);
+                });
+                sp.forEach(p=>{
+                    const pc=document.createElement('div');
+                    pc.className=`player-card bg-white p-5 rounded-xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 ${p.isOnBench && p.isPlayingThisGame ?'status-on-bench':(p.isPlayingThisGame ? 'status-on-field' : '')} player-enter ${!p.isPlayingThisGame ? 'not-playing-this-game' : ''}`;
+                    pc.dataset.playerId=p.id;
+
+                    let currentSessionTime = 0;
+                    if (p.isOnBench && p.benchStartTime && isGameActive && p.isPlayingThisGame) {
+                        currentSessionTime = Date.now() - p.benchStartTime;
+                    }
+                    const totalDisplayTime = p.accumulatedBenchTime + currentSessionTime;
+
+                    const keeperBtnClass = p.isKeeper ? 'btn-status-active' : 'btn-status-inactive';
+                    const injuryBtnClass = p.isInjured ? 'btn-injury-active' : 'btn-status-inactive';
+                    const playingBtnClass = p.isPlayingThisGame ? 'btn-success' : 'btn-warning';
+                    const benchBtnDisabled = !p.isPlayingThisGame ? 'disabled' : '';
+                    const keeperBtnDisabled = !p.isPlayingThisGame ? 'disabled' : '';
+                    const injuryBtnDisabled = !p.isPlayingThisGame ? 'disabled' : '';
+
+                    const photoPlaceholder = `https://placehold.co/48x48/e0e7ff/4f46e5?text=${p.name.substring(0,1).toUpperCase()}`;
+                    const photoElement = p.photoDataUrl
+                        ? `<img src="${p.photoDataUrl}" alt="${p.name}" class="player-photo-sm">`
+                        : `<img src="${photoPlaceholder}" alt="Placeholder" class="player-photo-sm">`;
+
+
+                    pc.innerHTML=`
+                        <div class="flex items-center flex-grow">
+                            ${photoElement}
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-semibold text-gray-800">#${p.number} ${p.name}</h3>
+                                <p class="text-sm font-medium ${!p.isPlayingThisGame ? 'text-gray-500' : (p.isOnBench ? 'text-red-600' : 'text-green-600')}">
+                                    Status: ${!p.isPlayingThisGame ? 'Not Playing' : (p.isOnBench ? 'On Bench' : 'On Field')}
+                                </p>
+                                <p class="text-sm text-gray-600">Total Bench Time: <span class="font-semibold total-bench-time">${p.isPlayingThisGame ? formatTime(totalDisplayTime) : 'N/A'}</span></p>
+                                ${p.isOnBench && p.isPlayingThisGame && isGameActive ?`<p class="text-sm text-red-500">Current Session: <span class="font-semibold current-session-time">${formatTime(currentSessionTime)}</span></p>`:''}
+                                <div class="mt-2 flex gap-2 flex-wrap">
+                                    <span class="text-xs font-medium ${p.isKeeper && p.isPlayingThisGame ? 'text-blue-600 bg-blue-100 px-2 py-1 rounded-full' : 'hidden'}">Keeper</span>
+                                    <span class="text-xs font-medium ${p.isInjured && p.isPlayingThisGame ? `text-red-700 bg-red-100 px-2 py-1 rounded-full` : 'hidden'}">Injured</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2 items-stretch mt-4 md:mt-0 flex-wrap">
+                            <button onclick="toggleBenchStatus(${p.id})" class="btn ${p.isOnBench?'btn-success':'btn-warning'} text-white" ${benchBtnDisabled}>${p.isOnBench?'Return to Field':'Send to Bench'}</button>
+
+                            <div class="dropdown">
+                                <button onclick="togglePlayerActionsDropdown(event, ${p.id})" class="btn btn-secondary">
+                                    Actions
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </button>
+                                <div id="dropdown-${p.id}" class="dropdown-content">
+                                    <button onclick="toggleKeeperStatus(${p.id})" class="${keeperBtnClass}" ${keeperBtnDisabled}>${p.isKeeper?'Unmark Keeper':'Keeper'}</button>
+                                    <button onclick="toggleInjuryStatus(${p.id})" class="${injuryBtnClass}" ${injuryBtnDisabled}>${p.isInjured?'Unmark Injured':'Injured'}</button>
+                                    <button onclick="showEditPlayerModal(${p.id})">Edit Player</button>
+                                    <button onclick="toggleIsPlayingStatus(${p.id})" class="${playingBtnClass} text-white">${p.isPlayingThisGame ? 'Not Playing':'Playing'}</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    playerListDiv.appendChild(pc);
+                    requestAnimationFrame(()=>pc.classList.add('player-enter-active'));
+                });
+            }
+        }
+
+        function togglePlayerActionsDropdown(event, playerId) {
+            event.stopPropagation();
+            const dropdownContent = document.getElementById(`dropdown-${playerId}`);
+            const dropdownWrapper = dropdownContent.parentElement;
+            const allPlayerCards = document.querySelectorAll('.player-card');
+
+            allPlayerCards.forEach(card => {
+                if (card !== dropdownWrapper.closest('.player-card')) {
+                    card.classList.remove('player-card-active-dropdown');
+                    const otherDropdown = card.querySelector('.dropdown');
+                    if (otherDropdown) {
+                        otherDropdown.classList.remove('active');
+                    }
+                }
+            });
+
+            const isActive = dropdownWrapper.classList.toggle('active');
+            if (isActive) {
+                dropdownWrapper.closest('.player-card').classList.add('player-card-active-dropdown');
+            } else {
+                dropdownWrapper.closest('.player-card').classList.remove('player-card-active-dropdown');
+            }
+        }
+
+        document.addEventListener('click', function(event) {
+            const dropdowns = document.querySelectorAll('.dropdown');
+            dropdowns.forEach(dropdown => {
+                if (!dropdown.contains(event.target)) {
+                    dropdown.classList.remove('active');
+                    dropdown.closest('.player-card').classList.remove('player-card-active-dropdown');
+                }
+            });
+        });
+
+
+        function startGlobalTimer() {
+            if(globalTimerInterval)clearInterval(globalTimerInterval);
+            globalTimerInterval=setInterval(()=>{
+                if(isScreenLocked || !isGameActive) return;
+                players.forEach(p=>{
+                    if(p.isOnBench && p.benchStartTime && p.isPlayingThisGame){
+                        const c=playerListDiv.querySelector(`.player-card[data-player-id='${p.id}']`);
+                        if(c){
+                            const cst=Date.now()-p.benchStartTime;
+                            const tdt=p.accumulatedBenchTime+cst;
+                            const tts=c.querySelector('.total-bench-time');if(tts)tts.textContent=formatTime(tdt);
+                            const css=c.querySelector('.current-session-time');if(css)css.textContent=formatTime(cst);
+                        }
+                    }
+                });
+            },1000);
+        }
+
+        function calculatePlayerTotalBenchTime(player) {
+            let cs = 0;
+            if (player.isOnBench && player.benchStartTime && player.isPlayingThisGame && isGameActive) {
+                cs = Date.now() - player.benchStartTime;
+            }
+            return player.accumulatedBenchTime + cs;
+        }
+        function getCurrentTotalGameTimeForReport() { let ctt = accumulatedGameTime; if (isGameActive && gameStartTime) ctt += (Date.now() - gameStartTime); return ctt; }
+
+        function showReportModal() {
+            if(isScreenLocked) return;
+            const reportTableBody = document.getElementById('reportTableBody');
+            reportTableBody.innerHTML = '';
+            const reportTotalGameTime = getCurrentTotalGameTimeForReport();
+
+            const playingThisGameReport = players.filter(p => p.isPlayingThisGame);
+            let totalBenchTimeOfPlayingPlayers = 0;
+            playingThisGameReport.forEach(p => {
+                totalBenchTimeOfPlayingPlayers += calculatePlayerTotalBenchTime(p);
+            });
+            const averageBenchTimeMs = (playingThisGameReport.length > 0 && reportTotalGameTime > 0) ? totalBenchTimeOfPlayingPlayers / playingThisGameReport.length : 0;
+
+            reportAverageBenchTimeDisplay.textContent = averageBenchTimeMs > 0 ? formatTime(averageBenchTimeMs) : "N/A";
+
+
+            const playersWithBenchTime = players.map(player => ({ ...player, totalBenchTimeForSort: calculatePlayerTotalBenchTime(player) }));
+            const sortedPlayersForReport = playersWithBenchTime.sort((a,b) => {
+                if (a.isPlayingThisGame !== b.isPlayingThisGame) return a.isPlayingThisGame ? -1 : 1;
+                return a.totalBenchTimeForSort - b.totalBenchTimeForSort;
+            });
+
+
+            const noPlayersForReportMsg = document.getElementById('noPlayersForReport');
+            const downloadPdfButton = document.getElementById('downloadPdfButton');
+
+            if(sortedPlayersForReport.length === 0){
+                noPlayersForReportMsg.classList.remove('hidden');
+                downloadPdfButton.disabled=true;
+                downloadPdfButton.classList.add('opacity-50','cursor-not-allowed');
+            } else {
+                noPlayersForReportMsg.classList.add('hidden');
+                downloadPdfButton.disabled=false;
+                downloadPdfButton.classList.remove('opacity-50','cursor-not-allowed');
+
+                sortedPlayersForReport.forEach(player => {
+                    const row = reportTableBody.insertRow();
+                    row.insertCell().textContent = player.number;
+                    row.insertCell().textContent = player.name;
+                    row.insertCell().textContent = player.isPlayingThisGame ? 'Yes' : 'No';
+                    row.insertCell().textContent = player.isKeeper ? 'Yes' : 'No';
+                    row.insertCell().textContent = player.isInjured ? 'Yes' : 'No';
+
+                    if (player.isPlayingThisGame) {
+                        row.insertCell().textContent = formatTime(player.totalBenchTimeForSort);
+                        const benchPercentage = (reportTotalGameTime > 0) ? (player.totalBenchTimeForSort / reportTotalGameTime) * 100 : 0;
+                        row.insertCell().textContent = benchPercentage.toFixed(1) + '%';
+
+                        row.classList.remove('highlight-green-bg', 'highlight-red-bg', 'highlight-orange-bg');
+                        if (averageBenchTimeMs > 0) {
+                            const lowerBound = averageBenchTimeMs * 0.9;
+                            const upperBound = averageBenchTimeMs * 1.1;
+                            if (player.totalBenchTimeForSort < lowerBound) {
+                                row.classList.add('highlight-red-bg');
+                            } else if (player.totalBenchTimeForSort > upperBound) {
+                                row.classList.add('highlight-orange-bg');
+                            } else {
+                                row.classList.add('highlight-green-bg');
+                            }
+                        }
+                    } else {
+                        row.insertCell().textContent = 'N/A';
+                        row.insertCell().textContent = 'N/A';
+                    }
+                });
+            }
+            document.getElementById('reportModal').classList.add('active');
+        }
+        function hideReportModal() { document.getElementById('reportModal').classList.remove('active'); }
+
+        function downloadReportAsPDF() {
+            if(isScreenLocked) return;
+            if (typeof jsPDF==='undefined'||typeof jsPDF.API==='undefined'||typeof jsPDF.API.autoTable==='undefined'){ console.error("PDF lib not loaded"); alert("Error: PDF lib not loaded."); return; }
+            const doc = new jsPDF();
+            const tableColumn = ["#", "Name", "Playing", "Keeper", "Injured", "Total Bench Time", "Bench % of Game"];
+            const tableRows = [];
+            const reportTotalGameTime = getCurrentTotalGameTimeForReport();
+
+            const playingPlayersForPdf = players.filter(p => p.isPlayingThisGame);
+            let totalBenchTimeOfPlayingPlayersPdf = 0;
+            playingPlayersForPdf.forEach(p => {
+                totalBenchTimeOfPlayingPlayersPdf += calculatePlayerTotalBenchTime(p);
+            });
+            const averageBenchTimeMsPdf = (playingPlayersForPdf.length > 0 && reportTotalGameTime > 0) ? totalBenchTimeOfPlayingPlayersPdf / playingPlayersForPdf.length : 0;
+
+
+            const playersWithBenchTimeForPDF = players.map(player => ({ ...player, totalBenchTimeForSort: calculatePlayerTotalBenchTime(player) }));
+            const sortedPlayersForPDF = playersWithBenchTimeForPDF.sort((a,b) => {
+                if (a.isPlayingThisGame !== b.isPlayingThisGame) return a.isPlayingThisGame ? -1 : 1;
+                return a.totalBenchTimeForSort - b.totalBenchTimeForSort;
+            });
+
+            sortedPlayersForPDF.forEach(player => {
+                let rowData = [
+                    player.number, player.name,
+                    player.isPlayingThisGame ? 'Yes' : 'No',
+                    player.isKeeper ? 'Yes' : 'No',
+                    player.isInjured ? 'Yes' : 'No'
+                ];
+                let cellStyles = {};
+
+                if (player.isPlayingThisGame) {
+                    const benchPercentage = (reportTotalGameTime > 0) ? (player.totalBenchTimeForSort / reportTotalGameTime) * 100 : 0;
+                    rowData.push(formatTime(player.totalBenchTimeForSort));
+                    rowData.push(benchPercentage.toFixed(1) + '%');
+
+                    if (averageBenchTimeMsPdf > 0) {
+                        if (player.totalBenchTimeForSort < averageBenchTimeMsPdf * 0.9) {
+                            cellStyles = { fillColor: [254, 226, 226] };
+                        } else if (player.totalBenchTimeForSort > averageBenchTimeMsPdf * 1.1) {
+                            cellStyles = { fillColor: [255, 237, 213] };
+                        } else {
+                            cellStyles = { fillColor: [220, 252, 231] };
+                        }
+                    }
+                } else {
+                    rowData.push('N/A', 'N/A');
+                }
+                tableRows.push(rowData.map(cellContent => ({ content: cellContent, styles: cellStyles })));
+            });
+
+            const melbourneDate = new Date().toLocaleString("en-AU",{timeZone:"Australia/Melbourne",year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:true});
+            let yPos = 22;
+            doc.setFontSize(18); doc.text("Soccer Bench Time Report",14,yPos); yPos += 7;
+            doc.setFontSize(11); doc.setTextColor(100); doc.text(`Generated: ${melbourneDate} (Melbourne Time)`,14,yPos); yPos += 7;
+            if (averageBenchTimeMsPdf > 0) {
+                doc.text(`Average Bench Time (Playing Players): ${formatTime(averageBenchTimeMsPdf)}`, 14, yPos); yPos+= 7;
+            } else {
+                doc.text(`Average Bench Time (Playing Players): N/A`, 14, yPos); yPos+=7;
+            }
+
+            doc.autoTable({ head:[tableColumn], body:tableRows, startY:yPos, theme:'grid', headStyles:{fillColor:[22,160,133]}, styles:{font:'Inter',cellPadding:2,fontSize:8}, columnStyles: { 0: {cellWidth: 12}, 1: {cellWidth: 'auto'}, 2: {cellWidth: 18}, 3: {cellWidth: 18}, 4: {cellWidth: 18}, 5: {cellWidth: 30}, 6: {cellWidth: 30} } });
+            const ft=new Date().toISOString().replace(/:/g,'-').slice(0,19);
+            doc.save(`soccer_bench_report_${ft}.pdf`);
+            hideReportModal();
+        }
+
+        function activateScreenLock() { isScreenLocked=true;document.getElementById('screenLockOverlay').classList.add('active');document.getElementById('lockButtonText').textContent="Unlock Screen";document.getElementById('lockIcon').classList.add('hidden');document.getElementById('unlockIcon').classList.remove('hidden');document.getElementById('toggleLockButton').classList.remove('btn-outline');document.getElementById('toggleLockButton').classList.add('btn-success');}
+        function deactivateScreenLock() { isScreenLocked=false;document.getElementById('screenLockOverlay').classList.remove('active');document.getElementById('lockButtonText').textContent="Lock Screen";document.getElementById('lockIcon').classList.remove('hidden');document.getElementById('unlockIcon').classList.add('hidden');document.getElementById('toggleLockButton').classList.add('btn-outline');document.getElementById('toggleLockButton').classList.remove('btn-success');document.getElementById('unlockProgress').style.width='0%';document.getElementById('unlockInstructions').textContent="Tap and hold to unlock";if(unlockHoldTimer)clearTimeout(unlockHoldTimer);}
+        function toggleScreenLock() { if(isScreenLocked)deactivateScreenLock();else activateScreenLock();}
+        function handleOverlayTouchStart(event) { event.preventDefault();if(!isScreenLocked)return;unlockHoldStartTime=Date.now();document.getElementById('unlockInstructions').textContent="Keep holding...";let pi=setInterval(()=>{const et=Date.now()-unlockHoldStartTime;const pp=Math.min((et/UNLOCK_HOLD_DURATION)*100,100);document.getElementById('unlockProgress').style.width=`${pp}%`;if(pp>=100)clearInterval(pi);},50);unlockHoldTimer=setTimeout(()=>{clearInterval(pi);deactivateScreenLock();},UNLOCK_HOLD_DURATION);}
+        function handleOverlayTouchEnd(event) { event.preventDefault();if(!isScreenLocked)return;clearTimeout(unlockHoldTimer);document.getElementById('unlockProgress').style.width='0%';document.getElementById('unlockInstructions').textContent="Tap and hold to unlock";const hd=Date.now()-unlockHoldStartTime;if(hd<UNLOCK_HOLD_DURATION){}}
+        document.getElementById('screenLockOverlay').addEventListener('touchstart', handleOverlayTouchStart, { passive: false });
+        document.getElementById('screenLockOverlay').addEventListener('touchend', handleOverlayTouchEnd);
+        document.getElementById('screenLockOverlay').addEventListener('touchcancel', handleOverlayTouchEnd);
+
+        window.onload = () => {
+            loadAllStateFromStorage();
+            renderPlayers();
+            startGlobalTimer();
+
+            [editPlayerModal, confirmationModal, reportModal].forEach(mi => {
+                if(mi) {
+                    mi.addEventListener('click', (e) => {
+                        if (e.target === mi) {
+                            if(mi.id === 'editPlayerModal') hideEditPlayerModal();
+                            if(mi.id === 'confirmationModal') hideConfirmationModal();
+                            if(mi.id === 'reportModal') hideReportModal();
+                        }
+                    });
+                }
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (editPlayerModal.classList.contains('active')) hideEditPlayerModal();
+                    if (confirmationModal.classList.contains('active')) hideConfirmationModal();
+                    if (reportModal.classList.contains('active')) hideReportModal();
+                    if (isScreenLocked) deactivateScreenLock();
+                }
+            });
+        };
+    </script>
 </body>
 </html>
